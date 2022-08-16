@@ -33,9 +33,21 @@ const showDetailData = ref({
     state: 0,
     stateMessage: '',
 });
+const showImportTasksDialog = ref(false);
+const showImportTasksFormRef = ref();
+const showImportTasksData = ref({
+    repository: '',
+    review: true,
+});
+const importTasksFromWhere = ref('fromRepository');
+const uploadTasksRef = ref();
+const uploadTasksNeedReview = ref(true);
 const commonRules = reactive({
     stateMessage: [
         { max: 512, message: '任务状态信息长度在 0 到 512 个字符', trigger: 'blur' },
+    ],
+    repository: [
+        { required: true, message: '仓库地址不能为空', trigger: 'blur' },
     ],
 });
 
@@ -126,6 +138,72 @@ function handleReviewReject() {
     }).catch(() => {});
 }
 
+function handleImportTasks() {
+    if ('fromRepository' === importTasksFromWhere.value) {
+        
+        showImportTasksFormRef.value.validate(valid => {
+            if (!valid)
+                return;
+
+            // 导入公开的任务仓库
+            loading.value = true;
+            network.post('/task/import', showImportTasksData.value).then(result => {
+                ElMessage({
+                    message: result.message,
+                    type: 'success',
+                });
+
+                currentPageData.value.records = result.data.concat(currentPageData.value.records);
+                currentPageData.value.total += result.data.length;
+                showImportTasksDialog.value = false;
+            }).catch(() => {}).finally(() => {
+                loading.value = false;
+            });
+
+        }).catch(() => {});
+        
+    } else {
+
+        // 上传文件
+        uploadTasksRef.value.submit();
+        
+    }
+}
+
+function handleUploadTasksBeforeUpload() {
+    loading.value = true;
+}
+
+function handleUploadTasksSuccess(response) {
+    currentPageData.value.records = response.data.concat(currentPageData.value.records);
+    currentPageData.value.total += response.data.length;
+    loading.value = false;
+    
+    ElMessage({
+        message: response.message,
+        type: 'success',
+    });
+}
+
+function handleUploadTasksError(error) {
+    loading.value = false;
+
+    if (-1 !== error.message.indexOf('"code"')) {
+        const result = JSON.parse(error.message);
+
+        ElMessage({
+            message: result.message,
+            type: 'error',
+        });
+    } else {
+        ElMessage({
+            message: error.message,
+            type: 'error',
+        });
+    }
+
+}
+
 </script>
 
 <style scoped>
@@ -140,6 +218,22 @@ function handleReviewReject() {
   align-items: center;
 }
 .task-brief dt {margin-top: 6px;}
+.fab-add {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background-color: rgba(255,255,255,0.1);
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  line-height: 68px;
+  text-align: center;
+  cursor: pointer;
+  transition: all ease-in-out 0.2s;
+}
+.fab-add:hover {
+  box-shadow: 1px 1px 10px 4px rgba(255, 255, 255, 0.2);
+}
 </style>
 
 <template>
@@ -275,6 +369,72 @@ function handleReviewReject() {
         </el-card>
 
     </el-space>
+
+    <el-dialog v-model="showImportTasksDialog" title="导入脚本仓库">
+        <el-tabs v-model="importTasksFromWhere">
+            <el-tab-pane label="开源仓库" name="fromRepository">
+                <el-form
+                    ref="showImportTasksFormRef"
+                    :model="showImportTasksData"
+                    :rules="commonRules"
+                    label-width="120px"
+                >
+                    <el-form-item label="脚本仓库地址" prop="repository">
+                        <el-input v-model="showImportTasksData.repository" size="large" />
+                    </el-form-item>
+
+                    <el-form-item label="是否进行审核" prop="review">
+                        <el-switch v-model="showImportTasksData.review" size="large" />
+                    </el-form-item>
+                </el-form>
+
+            </el-tab-pane>
+
+            <el-tab-pane label="上传压缩包" name="fromUpload">
+                <span>
+                    是否进行审核：<el-switch v-model="uploadTasksNeedReview" size="large" />
+                </span>
+
+                <el-upload
+                    ref="uploadTasksRef"
+                    :action="`${network.config.baseUrl}/task/import/upload/${uploadTasksNeedReview}`"
+                    :auto-upload="false"
+                    :headers="{ 'Authorization': network.config.jwtToken }"
+                    :limit="1"
+                    :before-upload="handleUploadTasksBeforeUpload"
+                    :on-success="handleUploadTasksSuccess"
+                    :on-error="handleUploadTasksError"
+                    drag
+                >
+                    <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+                    
+                    <div class="el-upload__text">
+                        将文件拖到此处，或<em>点击上传</em>
+                    </div>
+
+                    <template #tip>
+                        <div class="el-upload__tip">
+                            只能上传zip文件，且不能超过10MB
+                        </div>
+                    </template>
+
+                </el-upload>
+                
+            </el-tab-pane>
+        </el-tabs>
+
+        <template #footer>
+            <div>
+                <el-button @click="showImportTasksDialog = false">取消</el-button>
+                <el-button type="primary" @click="handleImportTasks">导入</el-button>
+            </div>
+        </template>
+
+    </el-dialog>
+
+    <div class="fab-add" @click="showImportTasksDialog = true">
+        <el-icon :size="26"><UploadFilled /></el-icon>
+    </div>
 
     <el-backtop :right="75" :bottom="65" />
 </template>
