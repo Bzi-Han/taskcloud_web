@@ -6,6 +6,7 @@ import { ElMessage } from 'element-plus'
 import sha1 from 'crypto-js/sha1'
 
 const loading = ref(false);
+const backendUrl = ref('');
 const isLogin = ref(true);
 const loginFormRef = ref();
 const loginForm = reactive({
@@ -78,6 +79,18 @@ function register() {
     }).catch(() => {});
 }
 
+function handleChangeBackendUrl() {
+    if ('' === backendUrl.value)
+        network.resetBaseUrl()
+    else
+        network.changeBaseUrl(backendUrl.value);
+
+    ElMessage({
+        message: '切换成功',
+        type: 'success',
+    });
+}
+
 </script>
 
 <template>
@@ -86,7 +99,7 @@ function register() {
             <el-col :span="1"></el-col>
             <el-col :xs="18" :sm="13" :md="11" :lg="7" :xl="6">
                 <el-card v-if="isLogin" style="text-align: center;">
-                    <h3 style="color: black; margin-bottom: 30px;">面板登陆</h3>
+                    <h3 style="color: white; margin-bottom: 30px;">面板登陆</h3>
 
                     <el-form
                         ref="loginFormRef"
@@ -106,6 +119,22 @@ function register() {
 
                     <el-button type="primary" @click="login">登陆</el-button>
                     <el-button @click="isLogin = false">注册账号</el-button>
+
+                    <el-input
+                        v-model="backendUrl"
+                        placeholder="请输入后端服务地址"
+                        style="margin-top: 30px;"
+                    >
+                        <template #prepend>
+                            替换后端服务地址
+                        </template>
+                        <template #append>
+                            <el-button @click="handleChangeBackendUrl">
+                                <el-icon><Check /></el-icon>
+                            </el-button>
+                        </template>
+                    </el-input>
+
                 </el-card>
 
                 <el-card v-else style="text-align: center;">

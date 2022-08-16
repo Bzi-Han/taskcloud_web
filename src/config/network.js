@@ -122,6 +122,16 @@ class Network {
         return await this.#pullData('DELETE', path, params, headers);
     }
 
+    resetBaseUrl() {
+        this.config.baseUrl = 'http://localhost:8080';
+        localStorage.setItem('baseUrl', this.config.baseUrl);
+    }
+
+    changeBaseUrl(baseUrl) {
+        this.config.baseUrl = baseUrl;
+        localStorage.setItem('baseUrl', baseUrl);
+    }
+
     reset() {
         localStorage.removeItem('token');
         this.config.jwtToken = '';
@@ -129,7 +139,8 @@ class Network {
     }
 }
 
-const network = new Network({baseUrl: 'http://localhost:8080'});
+const baseUrl = localStorage.getItem('baseUrl');
+const network = new Network({baseUrl: baseUrl ? baseUrl : 'http://localhost:8080'});
 
 // 发送内容拦截器
 network.config.intercepters.beforeRequest = async request => {
